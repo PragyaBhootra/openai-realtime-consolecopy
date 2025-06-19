@@ -4,10 +4,10 @@ import React from "react";
  * Extracts human-readable text from supported events.
  */
 function getMessageFromEvent(event) {
-  // User message
+  // User message (audio input, might not have transcript)
   if (event.type === "conversation.item.created" && event.item?.content) {
     const text = event.item.content
-      .map((c) => c?.text || c?.value || "[non-text]")
+      .map((c) => c?.text?.value || c?.transcript || "[non-text]")
       .join(" ");
     return { role: "user", text };
   }
@@ -17,15 +17,20 @@ function getMessageFromEvent(event) {
     return { role: "assistant", text: event.delta.text };
   }
 
-  // Assistant final output
+  // Assistant final structured output
   if (event.type === "response.output_item.added" && event.item?.content) {
     const text = event.item.content
-      .map((c) => c?.text || c?.value || "[non-text]")
+      .map((c) => c?.text?.value || c?.transcript || "[non-text]")
       .join(" ");
     return { role: "assistant", text };
   }
 
-  return null; // Ignore non-message events
+  // ✅ NEW: Assistant final voice transcript
+  if (event.type === "response.audio_transcript.done" && event.transcript) {
+    return { role: "assistant", text: event.transcript };
+  }
+
+  return null;
 }
 
 /**
@@ -35,15 +40,13 @@ export default function EventLog({ events }) {
   return (
     <div className="flex flex-col-reverse gap-2 px-2">
       {events.map((event, idx) => {
-        console.log("EVENT DEBUG:", event); // 🔍 Log for debugging
-
         const message = getMessageFromEvent(event);
-        if (!message || !message.text?.trim()) return null;
+        if (!message) return null;
 
         return (
           <div
             key={idx}
-            className={`p-2 rounded-lg shadow-sm max-w-[75%] ${
+            className={`p-2 rounded-lg shadow-sm max-w-xl ${
               message.role === "user"
                 ? "bg-blue-50 text-blue-900 self-start"
                 : "bg-green-50 text-green-900 self-end"
@@ -59,5 +62,6 @@ export default function EventLog({ events }) {
     </div>
   );
 }
+
 
 
