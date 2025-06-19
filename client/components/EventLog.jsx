@@ -7,7 +7,7 @@ function getMessageFromEvent(event) {
   // User message
   if (event.type === "conversation.item.created" && event.item?.content) {
     const text = event.item.content
-      .map((c) => c?.text?.value || "[non-text]")
+      .map((c) => c?.text || c?.value || "[non-text]")
       .join(" ");
     return { role: "user", text };
   }
@@ -17,15 +17,15 @@ function getMessageFromEvent(event) {
     return { role: "assistant", text: event.delta.text };
   }
 
-  // Assistant final output (optional)
+  // Assistant final output
   if (event.type === "response.output_item.added" && event.item?.content) {
     const text = event.item.content
-      .map((c) => c?.text?.value || "[non-text]")
+      .map((c) => c?.text || c?.value || "[non-text]")
       .join(" ");
     return { role: "assistant", text };
   }
 
-  return null;
+  return null; // Ignore non-message events
 }
 
 /**
@@ -35,13 +35,15 @@ export default function EventLog({ events }) {
   return (
     <div className="flex flex-col-reverse gap-2 px-2">
       {events.map((event, idx) => {
+        console.log("EVENT DEBUG:", event); // 🔍 Log for debugging
+
         const message = getMessageFromEvent(event);
-        if (!message) return null; // Skip non-chat events
+        if (!message || !message.text?.trim()) return null;
 
         return (
           <div
             key={idx}
-            className={`p-2 rounded-lg shadow-sm ${
+            className={`p-2 rounded-lg shadow-sm max-w-[75%] ${
               message.role === "user"
                 ? "bg-blue-50 text-blue-900 self-start"
                 : "bg-green-50 text-green-900 self-end"
@@ -57,4 +59,5 @@ export default function EventLog({ events }) {
     </div>
   );
 }
+
 
