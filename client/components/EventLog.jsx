@@ -1,64 +1,60 @@
-import { ArrowUp, ArrowDown } from "react-feather";
-import { useState } from "react";
+import React from "react";
 
-function Event({ event, timestamp }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+/**
+ * Extracts human-readable text from supported events.
+ */
+function getMessageFromEvent(event) {
+  // User message
+  if (event.type === "conversation.item.created" && event.item?.content) {
+    const text = event.item.content
+      .map((c) => c?.text?.value || "[non-text]")
+      .join(" ");
+    return { role: "user", text };
+  }
 
-  const isClient = event.event_id && !event.event_id.startsWith("event_");
+  // Assistant streaming response (token)
+  if (event.type === "response.content_part.added" && event.delta?.text) {
+    return { role: "assistant", text: event.delta.text };
+  }
 
-  return (
-    <div className="flex flex-col gap-2 p-2 rounded-md bg-gray-50">
-      <div
-        className="flex items-center gap-2 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        {isClient ? (
-          <ArrowDown className="text-blue-400" />
-        ) : (
-          <ArrowUp className="text-green-400" />
-        )}
-        <div className="text-sm text-gray-500">
-          {isClient ? "client:" : "server:"}
-          &nbsp;{event.type} | {timestamp}
-        </div>
-      </div>
-      <div
-        className={`text-gray-500 bg-gray-200 p-2 rounded-md overflow-x-auto ${
-          isExpanded ? "block" : "hidden"
-        }`}
-      >
-        <pre className="text-xs">{JSON.stringify(event, null, 2)}</pre>
-      </div>
-    </div>
-  );
+  // Assistant final output (optional)
+  if (event.type === "response.output_item.added" && event.item?.content) {
+    const text = event.item.content
+      .map((c) => c?.text?.value || "[non-text]")
+      .join(" ");
+    return { role: "assistant", text };
+  }
+
+  return null;
 }
 
+/**
+ * Renders a cleaned-up conversation log from raw OpenAI events.
+ */
 export default function EventLog({ events }) {
-  const eventsToDisplay = [];
-  let deltaEvents = {};
-
-  events.forEach((event) => {
-    if (event.type.endsWith("delta")) {
-      if (deltaEvents[event.type]) {
-        // for now just log a single event per render pass
-        return;
-      } else {
-        deltaEvents[event.type] = event;
-      }
-    }
-
-    eventsToDisplay.push(
-      <Event key={event.event_id} event={event} timestamp={event.timestamp} />,
-    );
-  });
-
   return (
-    <div className="flex flex-col gap-2 overflow-x-auto">
-      {events.length === 0 ? (
-        <div className="text-gray-500">Awaiting events...</div>
-      ) : (
-        eventsToDisplay
-      )}
+    <div className="flex flex-col-reverse gap-2 px-2">
+      {events.map((event, idx) => {
+        const message = getMessageFromEvent(event);
+        if (!message) return null; // Skip non-chat events
+
+        return (
+          <div
+            key={idx}
+            className={`p-2 rounded-lg shadow-sm ${
+              message.role === "user"
+                ? "bg-blue-50 text-blue-900 self-start"
+                : "bg-green-50 text-green-900 self-end"
+            }`}
+          >
+            <strong>
+              {message.role === "user" ? "🧑 You:" : "🤖 AI:"}
+            </strong>{" "}
+            {message.text}
+          </div>
+        );
+      })}
     </div>
   );
 }
+
