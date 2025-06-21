@@ -169,9 +169,7 @@ export default function App() {
         </section>
         <section className="absolute top-0 w-[380px] right-0 bottom-0 p-4 pt-0 overflow-y-auto">
           <ToolPanel
-            sendClientEvent={sendClientEvent}
             sendTextMessage={sendTextMessage}
-            events={events}
             isSessionActive={isSessionActive}
           />
         </section>
